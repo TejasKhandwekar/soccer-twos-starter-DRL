@@ -2,6 +2,10 @@ envs/
 ray_results/
 ceia_baseline_agent/
 data/
+*.out
+stwos_train_eval_auto-*.out
+soccerstwos-*.out
+eval_*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
