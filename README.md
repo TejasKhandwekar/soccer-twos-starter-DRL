@@ -73,6 +73,81 @@ To examine the baseline agent, you must extract the `ceia_baseline_agent` folder
 
 , to examine the random agent vs. the baseline agent.
 
+## Project Additions (DRL Team Workflow)
 
+This repository now includes a full strong-agent training and evaluation pipeline built on PPO self-play.
 
-# soccer-twos-starter-DRL
+### New Training Script
+
+- train_strong_selfplay_shaped.py
+	- Multi-agent PPO self-play with opponent archive rotation.
+	- Dense reward shaping based on ball progress toward goal.
+	- Checkpoint resume support using STRONG_RESTORE_CHECKPOINT.
+	- Cluster-safe port handling using STRONG_BASE_PORT.
+
+### New Utility and Packaging/Eval Scripts
+
+- utils.py
+	- Includes BallProgressRewardWrapper used by the strong training script.
+- package_my_strong_agent.py
+	- Finds latest checkpoint and packages files to my_strong_agent/checkpoint.
+- evaluate_vs_baseline.py
+	- Runs head-to-head module evaluation and saves JSON output.
+- evaluate_vs_random.py
+	- Runs checkpoint-vs-random evaluation utility.
+
+### Added Batch Scripts (PACE)
+
+- scripts/train_package_eval_strong_pace.sbatch
+- scripts/train_strong_agent_pace.sbatch
+- scripts/eval_mystrong_vs_baseline_pace.sbatch
+
+These scripts are intended for Georgia Tech PACE usage and include environment setup and job resource configuration.
+
+## Reproducible Strong-Agent Workflow
+
+### 1) Submit/Resume Training on PACE
+
+Example fresh run:
+
+```bash
+sbatch scripts/train_package_eval_strong_pace.sbatch
+```
+
+Example resume from checkpoint:
+
+```bash
+sbatch --export=ALL,STRONG_RESTORE_CHECKPOINT=/path/to/checkpoint-XXXX scripts/train_package_eval_strong_pace.sbatch
+```
+
+### 2) Package Latest Checkpoint
+
+```bash
+python package_my_strong_agent.py --experiment-dir ~/scratch/ray_results/PPO_STRONG_SELFPLAY_SHAPED
+```
+
+### 3) Evaluate Against Baseline
+
+```bash
+python evaluate_vs_baseline.py --agent1 my_strong_agent --agent2 ceia_baseline_agent --episodes 200
+```
+
+### 4) (Optional) Evaluate Against Random
+
+```bash
+python evaluate_vs_random.py --checkpoint /full/path/to/checkpoint-XXXX --opponent random --episodes 20
+```
+
+## Collaboration Notes
+
+- Main project remote can point to your team repository.
+- Keep upstream linked to the original starter repository for future sync.
+- Recommended team flow:
+	- Create feature branches per change.
+	- Open pull requests into main.
+	- Keep experiment outputs and cluster logs out of git.
+
+## Notes on Runtime Warnings
+
+On login nodes, Ray may emit periodic dashboard/metrics warnings related to host resolution.
+If evaluation reaches 100 percent episode completion and writes output JSON, results are still valid.
