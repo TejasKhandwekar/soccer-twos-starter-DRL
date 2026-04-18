@@ -208,7 +208,34 @@ def create_rllib_env(env_config: dict = {}):
             env_config.worker_index * env_config.get("num_envs_per_worker", 1)
             + env_config.vector_index
         )
-    env = soccer_twos.make(**env_config)
+
+    make_kwargs = dict(env_config)
+    base_port = make_kwargs.get("base_port")
+    max_port_retries = int(make_kwargs.pop("max_port_retries", 5))
+
+    env = None
+    last_err = None
+    for attempt in range(max_port_retries):
+        try:
+            env = soccer_twos.make(**make_kwargs)
+            break
+        except Exception as e:
+            msg = str(e)
+            is_port_conflict = (
+                "UnityWorkerInUseException" in msg
+                or "Address already in use" in msg
+                or "worker number" in msg
+            )
+            if not is_port_conflict or base_port is None or attempt == max_port_retries - 1:
+                raise
+
+            # Shift to a new port block to avoid collisions from other jobs.
+            shifted_base_port = int(base_port) + (attempt + 1) * 1000
+            make_kwargs["base_port"] = shifted_base_port
+            last_err = e
+
+    if env is None and last_err is not None:
+        raise last_err
 
     if env_config.get("use_ball_progress_reward", False):
         reward_cfg = env_config.get("ball_progress_reward_config", {})
