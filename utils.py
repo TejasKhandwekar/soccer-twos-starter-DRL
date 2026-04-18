@@ -16,22 +16,32 @@ class RLLibWrapper(gym.core.Wrapper, MultiAgentEnv):
 
 class BallProgressRewardWrapper(gym.core.Wrapper, MultiAgentEnv):
     """
-    Adds dense shaping reward based on whether the ball moves toward each team's
-    scoring direction along the x-axis.
+    Comprehensive dense reward shaping:
+    1. Ball progress toward opponent goal (offensive)
+    2. Ball territory (ball in enemy half)
+    3. Possession incentive (ball proximity)
+    4. Defense incentive (staying near own goal when under pressure)
+    5. Conceding penalty (negative when opponent scores)
 
     Team 0 attacks +x, Team 1 attacks -x.
     """
 
-    def __init__(self, env, progress_weight=0.05, territory_weight=0.003, clip_abs=0.07):
+    def __init__(self, env, progress_weight=0.08, territory_weight=0.01, 
+                 possession_weight=0.02, defense_weight=0.01, concede_penalty=1.0, clip_abs=0.20):
         super().__init__(env)
         self.progress_weight = float(progress_weight)
         self.territory_weight = float(territory_weight)
+        self.possession_weight = float(possession_weight)
+        self.defense_weight = float(defense_weight)
+        self.concede_penalty = float(concede_penalty)
         self.clip_abs = float(clip_abs)
         self._last_ball_x = None
+        self._last_scores = {0: 0, 1: 0}  # Track goals for both teams
 
     def reset(self, **kwargs):
         obs = self.env.reset(**kwargs)
         self._last_ball_x = None
+        self._last_scores = {0: 0, 1: 0}
         return obs
 
     @staticmethod
@@ -54,6 +64,10 @@ class BallProgressRewardWrapper(gym.core.Wrapper, MultiAgentEnv):
         # agent ids 0,1 are team 0 (+x attack); 2,3 are team 1 (-x attack)
         return 1.0 if agent_id in (0, 1) else -1.0
 
+    @staticmethod
+    def _get_team_id(agent_id):
+        return 0 if agent_id in (0, 1) else 1
+
     def step(self, action):
         obs, rewards, done, info = self.env.step(action)
 
@@ -71,17 +85,46 @@ class BallProgressRewardWrapper(gym.core.Wrapper, MultiAgentEnv):
         delta_x = ball_x - self._last_ball_x
         self._last_ball_x = ball_x
 
+        # Extract current scores if available
+        current_scores = {0: 0, 1: 0}
+        for agent_info in info.values():
+            if isinstance(agent_info, dict):
+                team_id = agent_info.get("team_id")
+                if team_id in (0, 1):
+                    current_scores[team_id] = agent_info.get("score", 0)
+
         shaped = dict(rewards)
         for agent_id, base_reward in rewards.items():
-            directed_progress = self._team_sign(agent_id) * delta_x
-            directed_ball_x = self._team_sign(agent_id) * ball_x
-            bonus = (
-                self.progress_weight * directed_progress
-                + self.territory_weight * directed_ball_x
-            )
+            team_sign = self._team_sign(agent_id)
+            team_id = self._get_team_id(agent_id)
+            opponent_id = 1 - team_id
+
+            # 1. Ball progress: reward moving ball toward opponent goal
+            directed_progress = team_sign * delta_x
+            progress_bonus = self.progress_weight * directed_progress
+
+            # 2. Territory: reward ball in offensive half (positive x for team0, negative x for team1)
+            directed_ball_x = team_sign * ball_x
+            territory_bonus = self.territory_weight * max(0, directed_ball_x)  # Only reward advancing half
+
+            # 3. Possession incentive: encourage ball engagement
+            # Rough proxy: ball moving suggests active play
+            possession_bonus = self.possession_weight * abs(delta_x)
+
+            # 4. Defense incentive: penalize being far from own goal when opponent has ball
+            # (This can be refined further with positional info if available)
+            defense_bonus = -self.defense_weight * max(0, -directed_ball_x) * 0.1  # Light penalty when ball far from goal
+
+            # 5. Conceding penalty: strong negative reward when opponent scores
+            concede_bonus = 0.0
+            if current_scores[opponent_id] > self._last_scores[opponent_id]:
+                concede_bonus = -self.concede_penalty
+
+            bonus = progress_bonus + territory_bonus + possession_bonus + defense_bonus + concede_bonus
             bonus = max(-self.clip_abs, min(self.clip_abs, bonus))
             shaped[agent_id] = float(base_reward) + bonus
 
+        self._last_scores = current_scores
         return obs, shaped, done, info
 
 

@@ -150,12 +150,15 @@ if __name__ == "__main__":
             "env_config": {
                 "num_envs_per_worker": NUM_ENVS_PER_WORKER,
                 "base_port": BASE_PORT,
-                # Dense shaping: positive when ball advances toward goal.
+                # Comprehensive reward shaping with 5 components
                 "use_ball_progress_reward": True,
                 "ball_progress_reward_config": {
-                    "progress_weight": 0.05,
-                    "territory_weight": 0.003,
-                    "clip_abs": 0.07,
+                    "progress_weight": 0.08,      # Reward ball advancing toward opponent goal
+                    "territory_weight": 0.01,     # Reward ball in offensive half
+                    "possession_weight": 0.02,    # Reward active ball engagement
+                    "defense_weight": 0.01,       # Light penalty for leaving own goal exposed
+                    "concede_penalty": 1.0,       # Strong penalty for conceding goals
+                    "clip_abs": 0.20,             # Wider clip range for more nuanced rewards
                 },
                 # Observation augmentation with directed ball-state features.
                 "use_ball_feature_observation": True,
