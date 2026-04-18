@@ -96,7 +96,23 @@ if __name__ == "__main__":
     )
 
     tune.registry.register_env("Soccer", create_rllib_env)
-    temp_env = create_rllib_env()
+    
+    # Create temp env with the SAME wrapper config as training envs
+    # so observation_space matches what the policy will actually see
+    temp_env_config = {
+        "base_port": BASE_PORT,
+        "use_ball_progress_reward": True,
+        "ball_progress_reward_config": {
+            "progress_weight": 0.05,
+            "territory_weight": 0.003,
+            "clip_abs": 0.07,
+        },
+        "use_ball_feature_observation": True,
+        "ball_feature_observation_config": {
+            "feature_clip": 1.0,
+        },
+    }
+    temp_env = create_rllib_env(temp_env_config)
     obs_space = temp_env.observation_space
     act_space = temp_env.action_space
     temp_env.close()
