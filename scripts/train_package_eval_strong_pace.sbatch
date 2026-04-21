@@ -24,17 +24,25 @@ mkdir -p ~/scratch/soccer_twos_reports
 export RAY_TMPDIR=~/scratch/ray_tmp
 
 # Configure a full run that fits the PACE GPU walltime limit.
-export STRONG_TRAIN_HOURS=16
-export STRONG_TRAIN_TIMESTEPS=40000000
-export STRONG_BASE_PORT=$((15000 + SLURM_JOB_ID % 40000))
+export STRONG_TRAIN_HOURS=${STRONG_TRAIN_HOURS:-16}
+export STRONG_TRAIN_TIMESTEPS=${STRONG_TRAIN_TIMESTEPS:-40000000}
+export STRONG_BASE_PORT=${STRONG_BASE_PORT:-$((15000 + SLURM_JOB_ID % 40000))}
 echo "Using STRONG_BASE_PORT=${STRONG_BASE_PORT}"
+echo "Using STRONG_TRAIN_HOURS=${STRONG_TRAIN_HOURS}"
+echo "Using STRONG_TRAIN_TIMESTEPS=${STRONG_TRAIN_TIMESTEPS}"
+if [[ -n "${STRONG_RESTORE_CHECKPOINT:-}" ]]; then
+	echo "Using STRONG_RESTORE_CHECKPOINT=${STRONG_RESTORE_CHECKPOINT}"
+fi
 
 START_TS=$(date +%Y%m%d_%H%M%S)
 REPORT_DIR=~/scratch/soccer_twos_reports/${START_TS}
 mkdir -p "${REPORT_DIR}"
 
+TRAIN_SCRIPT=${TRAIN_SCRIPT:-train_strong_selfplay_shaped.py}
+echo "Using TRAIN_SCRIPT=${TRAIN_SCRIPT}"
+
 echo "[1/4] Training strong agent..."
 ray stop --force || true
-/home/hice1/tkhandwekar3/scratch/soccertwos_env/bin/python train_strong_selfplay_shaped.py | tee "${REPORT_DIR}/train.log"
+/home/hice1/tkhandwekar3/scratch/soccertwos_env/bin/python "${TRAIN_SCRIPT}" | tee "${REPORT_DIR}/train.log"
 
 echo "Training will finish after 16 hours. Package/eval can be run afterward with the checkpoint from ray_results."

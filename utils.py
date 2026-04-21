@@ -14,7 +14,7 @@ class RLLibWrapper(gym.core.Wrapper, MultiAgentEnv):
     pass
 
 
-class BallProgressRewardWrapper(gym.core.Wrapper, MultiAgentEnv):
+class BallProgressRewardWrapper(gym.core.Wrapper):
     """
     Comprehensive dense reward shaping:
     1. Ball progress toward opponent goal (offensive)
@@ -71,8 +71,49 @@ class BallProgressRewardWrapper(gym.core.Wrapper, MultiAgentEnv):
     def step(self, action):
         obs, rewards, done, info = self.env.step(action)
 
+        # team_vs_policy returns a scalar reward instead of per-agent dict.
         if not isinstance(rewards, dict):
-            return obs, rewards, done, info
+            ball_x = self._extract_ball_x(info)
+            if ball_x is None:
+                return obs, rewards, done, info
+
+            if self._last_ball_x is None:
+                self._last_ball_x = ball_x
+                return obs, rewards, done, info
+
+            delta_x = ball_x - self._last_ball_x
+            self._last_ball_x = ball_x
+
+            # In team_vs_policy, learning controls team 0 (attacks +x).
+            directed_progress = delta_x
+            directed_ball_x = ball_x
+
+            # Try to infer scoreboard in team_vs_policy info payload.
+            current_scores = dict(self._last_scores)
+            if isinstance(info, dict):
+                for _, maybe_info in info.items():
+                    if not isinstance(maybe_info, dict):
+                        continue
+                    team_id = maybe_info.get("team_id")
+                    score = maybe_info.get("score")
+                    if team_id in (0, 1) and isinstance(score, (int, float)):
+                        current_scores[int(team_id)] = int(score)
+
+            concede_bonus = 0.0
+            # Learning side is team 0 in team_vs_policy mode.
+            if current_scores.get(1, 0) > self._last_scores.get(1, 0):
+                concede_bonus = -self.concede_penalty
+
+            bonus = (
+                self.progress_weight * directed_progress
+                + self.territory_weight * max(0.0, directed_ball_x)
+                + self.possession_weight * abs(delta_x)
+                - self.defense_weight * max(0.0, -directed_ball_x) * 0.1
+                + concede_bonus
+            )
+            bonus = max(-self.clip_abs, min(self.clip_abs, bonus))
+            self._last_scores = current_scores
+            return obs, float(rewards) + bonus, done, info
 
         ball_x = self._extract_ball_x(info)
         if ball_x is None:
@@ -128,7 +169,7 @@ class BallProgressRewardWrapper(gym.core.Wrapper, MultiAgentEnv):
         return obs, shaped, done, info
 
 
-class BallFeatureObservationWrapper(gym.core.Wrapper, MultiAgentEnv):
+class BallFeatureObservationWrapper(gym.core.Wrapper):
     """
     Appends two dense features to each observation vector:
     1) Team-directed ball x position

@@ -57,6 +57,32 @@ To receive full credit on the assignment and ensure the teaching staff can prope
 
 Training plots are required for every agent that is discussed or submitted. Additionally, include a direct performance comparison across agents, such as overlaid learning curves, to support your analysis.
 
+## Final Submission (Team KAT)
+
+- Final agent module: `KAT_AGENT/`
+- Final packaged artifact for submission: `KAT_AGENT.zip`
+- Agent interface implementation: `KAT_AGENT/agent.py` (`StrongPPOAgent`)
+- Submission metadata: `KAT_AGENT/README.md`
+
+This repository may contain additional experiment agents and checkpoints, but Team KAT's final submission is the `KAT_AGENT` package.
+
+## Reward Shaping: What and Where
+
+Reward shaping is applied during training (not inference packaging).
+
+- Location of shaping wrapper: `utils.py` (`BallProgressRewardWrapper`)
+- Where it is enabled for strong self-play training: `train_strong_selfplay_shaped.py` (`env_config` with `use_ball_progress_reward=True` and `ball_progress_reward_config`)
+
+Dense reward shaping components used for the final KAT strong agent training:
+
+1. Ball progress toward opponent goal (`progress_weight = 0.08`)
+2. Offensive territory bonus (`territory_weight = 0.01`)
+3. Possession/engagement incentive (`possession_weight = 0.02`)
+4. Defensive pressure term (`defense_weight = 0.01`)
+5. Conceding penalty (`concede_penalty = 1.0`)
+
+Per-step shaping bonus is clipped to `[-0.20, 0.20]` before being added to base environment reward.
+
 
 ## Testing/Evaluating
 
