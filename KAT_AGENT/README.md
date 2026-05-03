@@ -17,6 +17,11 @@ amisra43@gatech.edu
 # Description
 This submission package contains an inference-ready PPO agent for SoccerTwos.
 
+Submission identity note:
+- `KAT_AGENT` is the final submission name for Team KAT.
+- This is the same Strong PPO agent previously developed as `my_strong_agent`, renamed for submission packaging and naming compliance.
+- Core policy class and runtime behavior are unchanged (`StrongPPOAgent` in `agent.py`).
+
 - Interface: `StrongPPOAgent` inherits from `soccer_twos.AgentInterface` and implements `act`.
 - Runtime files included: `__init__.py`, `agent.py`, and checkpoint files under `checkpoint/`.
 - Training approach: multi-agent self-play with opponent archive and dense reward shaping.

@@ -64,9 +64,17 @@ Training plots are required for every agent that is discussed or submitted. Addi
 - Agent interface implementation: `KAT_AGENT/agent.py` (`StrongPPOAgent`)
 - Submission metadata: `KAT_AGENT/README.md`
 
+Traceability:
+- `KAT_AGENT` is the final submission rename of the team strong PPO module previously referred to as `my_strong_agent`.
+- The submission rename is for packaging/identifier clarity; the underlying strong PPO policy implementation remains the same.
+
+Note on tests and included code:
+- A set of local tests and evaluations were run during development (head-to-head evaluations using `evaluate_vs_baseline.py`, short rollouts, and training-curve inspections). These were used to verify performance and generate the comparison assets in `kat_comparison_assets`.
+- For reproducibility and grading, the repository includes the training and utility code used to produce the strong agent: `utils.py` (reward & observation wrappers) and `train_strong_selfplay_shaped.py` (training configuration and RLlib entrypoint). The `KAT_AGENT` packaged artifact is the inference-ready module; the training scripts remain in the repo for traceability.
+
 This repository may contain additional experiment agents and checkpoints, but Team KAT's final submission is the `KAT_AGENT` package.
 
-## Reward Shaping: What and Where
+## Reward Shaping:
 
 Reward shaping is applied during training (not inference packaging).
 
@@ -99,9 +107,6 @@ To examine the baseline agent, you must extract the `ceia_baseline_agent` folder
 
 , to examine the random agent vs. the baseline agent.
 
-## Project Additions (DRL Team Workflow)
-
-This repository now includes a full strong-agent training and evaluation pipeline built on PPO self-play.
 
 ### New Training Script
 
@@ -158,22 +163,9 @@ python package_my_strong_agent.py --experiment-dir ~/scratch/ray_results/PPO_STR
 python evaluate_vs_baseline.py --agent1 my_strong_agent --agent2 ceia_baseline_agent --episodes 200
 ```
 
-### 4) (Optional) Evaluate Against Random
+### 4) Evaluate Against Random
 
 ```bash
 python evaluate_vs_random.py --checkpoint /full/path/to/checkpoint-XXXX --opponent random --episodes 20
 ```
 
-## Collaboration Notes
-
-- Main project remote can point to your team repository.
-- Keep upstream linked to the original starter repository for future sync.
-- Recommended team flow:
-	- Create feature branches per change.
-	- Open pull requests into main.
-	- Keep experiment outputs and cluster logs out of git.
-
-## Notes on Runtime Warnings
-
-On login nodes, Ray may emit periodic dashboard/metrics warnings related to host resolution.
-If evaluation reaches 100 percent episode completion and writes output JSON, results are still valid.
